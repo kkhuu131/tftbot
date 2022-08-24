@@ -22,9 +22,23 @@ avoid_augments = ["Soul", "Heart", "Crest", "Built Different", "Double", "Big", 
                   "Titanic", "Tiamat", "Trade", "Binary", "Cavalier", "Cursed", "Cruel", "Think", "Phony", "Forge",
                   "Radiant", "Essence"]
 # set ideal items (one is the total set of components, other is formatted as full items)
-# as of now, these items are only for the highest priority unit
-target_items = ["bow", "needless", "glove", "cloak", "sword", "bow"]
-needed_items = [["bow", "needless"], ["glove", "cloak"], ["sword", "bow"]]
+# i, j, k
+# i refers to which unit
+# j refers to which item slot (3 for each unit)
+# k refers to option(s) for that item slot (items and its alternatives basically)
+# l refers to the components of each item
+target_items = [[[["bow", "needless"]], [["glove", "cloak"]], [["sword", "bow"], ["bow", "vest"]]], [], [], [], [], [], [], []]
+target_components = []
+for unit in target_items:
+    for item_slot in unit:
+        for item in item_slot:
+            for component in item:
+                target_components.append(component)
+
+unitemized_units = []
+for unit in target_items:
+    unitemized_units.append(not unit)
+
 
 # STATE VARIABLES
 
@@ -41,7 +55,6 @@ augment_reroll_left = True
 
 
 # SCRIPT FUNCTIONS
-
 
 def wait_until_next_stage():
     global stage
@@ -84,37 +97,51 @@ def have_components(c1, c2):
 def slam_items():
     global items
     items = TFTapi.items()
-    print(items)
+    print("items: " + str(items))
 
-    for item in needed_items:
-        i, j = have_full_item(item[0], item[1], items)
-        if i != -1 and fielded_units[0]:
-            print("MAKING ITEM on sett: " + item[0], item[1])
-            print(i)
-            print(items[i])
-            print(j)
-            print(items[j])
-            items1x, items1y = TFTapi.get_items_pos(i)
-            items2x, items2y = TFTapi.get_items_pos(j)
-            unitx, unity = TFTapi.get_board_pos(unit_positions[0][0], unit_positions[0][1])
-            TFTapi.drag(items1x, items1y, unitx, unity)
-            time.sleep(0.5)
-            TFTapi.drag(items2x, items2y, unitx, unity)
-            needed_items.remove(item)
-            items[i] = ""
-            items[j] = ""
+    priority_components = []
 
+    # slam any full items we need and have
+    for unit_index in range(len(target_items)):
+        unit_items = target_items[unit_index]
+        for item_slot in unit_items:
+            for item in item_slot:
+                if item[0] not in priority_components and item[1] not in priority_components:
+                    i, j = have_full_item(item[0], item[1], items)
+                    if i != -1 and fielded_units[0]:
+                        print("Making " + item[0] + "+" + item[1] + " on " + target_units[unit_index])
+                        print(i)
+                        print(items[i])
+                        print(j)
+                        print(items[j])
+                        items1x, items1y = TFTapi.get_items_pos(i)
+                        items2x, items2y = TFTapi.get_items_pos(j)
+                        unitx, unity = TFTapi.get_board_pos(unit_positions[unit_index][0], unit_positions[unit_index][1])
+                        TFTapi.drag(items1x, items1y, unitx, unity)
+                        time.sleep(0.5)
+                        TFTapi.drag(items2x, items2y, unitx, unity)
+                        target_items[unit_index].remove(item_slot)
+                        items[i] = ""
+                        items[j] = ""
+                        break
+                    else:
+                        # makes sure we don't use any components that we need for higher priority units
+                        # might need to change logic to be more flexible
+                        priority_components.append(item[0])
+                        priority_components.append(item[1])
+
+    # slam remaining unneeded components on other units
     for i in range(len(items)):
-        if not any(substring.lower() in items[i].lower() for substring in target_items):
+        if not any(substring.lower() in items[i].lower() for substring in target_components):
             if "remover" not in items[i].lower() and "champion" not in items[i].lower() and "reforger" \
                     not in items[i].lower() and items[i] != '':
                 unit_index = -1
                 for n in range(len(fielded_units)-1, 0, -1):
-                    if fielded_units[n]:
+                    if fielded_units[n] and unitemized_units[n]:
                         unit_index = n
                         break
                 if unit_index != -1:
-                    print("slamming " + items[i].lower() + target_units[unit_index])
+                    print("Slamming (" + items[i].lower() + ") on " + target_units[unit_index])
                     itemsx, itemsy = TFTapi.get_items_pos(i)
                     x, y = TFTapi.get_board_pos(unit_positions[unit_index][0], unit_positions[unit_index][1])
                     TFTapi.drag(itemsx, itemsy, x, y)
