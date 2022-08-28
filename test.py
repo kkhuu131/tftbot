@@ -1,58 +1,77 @@
 import time
 
 import cv2
+import keyboard
 import numpy as np
 import win32api
 from PIL import Image, ImageDraw
+from pytesseract import pytesseract
 
 from TFTapi import sct
 
 
-def carousel(target_items):
+def get_board_pos(col, row):
+    x, y = 0, 0
+    if row == 0:
+        x, y = 562, 410
+        x += 114 * col
+    if row == 1:
+        x, y = 610, 480
+        x += 118 * col
+    if row == 2:
+        x, y = 534, 560
+        x += 123 * col
+    if row == 3:
+        x, y = 581, 670
+        x += 128 * col
+
+    return x, y
+
+
+def get_jade_statue(positions, ignore_positions):
     method = cv2.TM_SQDIFF_NORMED
-    threshold = 0.15
+    threshold = 0.3
 
-    for item in target_items:
-        item_img = get_item_img(item)
+    jade_statue_img = cv2.imread('jade_statue.png')
 
-        w, h = 480, 360
-        img = Image.frombytes('RGB', (w, h), sct.grab({'top': 246, 'left': 707, 'width': w, 'height': h}).rgb)
-        lum_img = Image.new('L', (w, h), 0)
-        draw = ImageDraw.Draw(lum_img)
+    w, h = 978, 358
+    img = Image.frombytes('RGB', (w, h), sct.grab({'top': 382, 'left': 428, 'width': w, 'height': h}).rgb)
+    img_array = np.array(img)
+    # cover already positioned jades
+    for n in range(len(positions)):
+        if ignore_positions[n]:
+            print("drawing")
+            x, y = get_board_pos(positions[n][0], positions[n][1])
+            cv2.rectangle(img_array, (x-20-428, y-40-382), (x+20-428, y+40-382), (0, 0, 0), -1)
 
-        draw.pieslice(((0, 0), (w, h)), 0, 360, fill=255)
-        img_arr = np.array(img)
-        lum_img_arr = np.array(lum_img)
-        final_img_arr = np.dstack((img_arr, lum_img_arr))
+    screen = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
 
-        screen = cv2.cvtColor(final_img_arr, cv2.COLOR_RGB2BGR)
-        result = cv2.matchTemplate(item_img, screen, method)
+    result = cv2.matchTemplate(jade_statue_img, screen, method)
 
-        mn, _, mnLoc, _ = cv2.minMaxLoc(result)
+    # We want the minimum squared difference
+    mn, _, mnLoc, _ = cv2.minMaxLoc(result)
 
-        MPx, MPy = mnLoc
+    MPx, MPy = mnLoc
 
-        trows, tcols = item_img.shape[:2]
+    trows, tcols = jade_statue_img.shape[:2]
 
-        print("searching for " + item)
-
-        if mn <= threshold:
-            print("found " + item)
-            x, y = MPx + 707 + int(tcols / 2), MPy + 246 + int(trows / 2)
-            move(x, y)
-            center_x, center_y = 947, 700
-            diff_x, diff_y = x - center_x, y - center_y
-            diff_x, diff_y = diff_x * 0.8, diff_y * 0.8
-            move(int(center_x + diff_x), int(center_y + diff_y))
-            time.sleep(0.1)
-            break
+    if mn <= threshold:
+        x1, y1 = MPx + 428 + int(tcols / 2), MPy + 382 + int(trows / 2)
+        win32api.SetCursorPos((x1, y1))
+        print("found")
+    else:
+        print("not found")
 
 
-def move(x, y):
-    win32api.SetCursorPos((x, y))
+def early_stage():
+    img = Image.frombytes('RGB', (90, 30), sct.grab({'top': 5, 'left': 800, 'width': 90, 'height': 30}).rgb)
+    img.show()
+    img = img.resize((90 * 4, 30 * 4))
+    if ''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s.isdigit()) != '':
+        return int(''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s.isdigit()))
+    else:
+        return -1
 
-
-# private function, returns image of requested item
 def get_item_img(item):
     return {
         'belt': cv2.imread('carousel_belt.png'),
@@ -66,5 +85,5 @@ def get_item_img(item):
     }.get(item, cv2.imread('carousel_belt.png'))
 
 
-carousel(["glove"])
+item = get_item_img('belt')
 

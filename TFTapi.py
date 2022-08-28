@@ -153,8 +153,17 @@ def get_unit_img(unit):
         'senna': cv2.imread('senna.png'),
         'taric': cv2.imread('taric.png'),
         'test': cv2.imread('sett.png'),
-        'tristana': cv2.imread('tristana.png')
-    }.get(unit, cv2.imread('senna.png'))
+        'wukong': cv2.imread('wukong.png'),
+        'jax': cv2.imread('jax.png'),
+        'shi': cv2.imread('soy.png'),
+        'gnar': cv2.imread('gnar.png'),
+        'olaf': cv2.imread('olaf.png'),
+        'yone': cv2.imread('yone.png'),
+        'karma': cv2.imread('karma.png'),
+        'jayce': cv2.imread('jayce.png'),
+        'bard': cv2.imread('bard.png')
+
+    }.get(unit, cv2.imread('wukong.png'))
 
 
 shopWindow = {'top': 915, 'left': 480, 'width': 1000, 'height': 165}
@@ -264,7 +273,7 @@ def buy_out_units(units, amount):
                         break
                 else:
                     break
-    return shop_slots
+    return slots_price
 
 
 def x_to_slot(x):
@@ -290,6 +299,8 @@ def roll_down(units, rolls):
 
 # return x, y position of given bench slot (only valid from 0-8) (0-indexed, left to right)
 def get_bench_pos(n):
+    if n < 0 or n > 8:
+        raise Exception(str(n) + " is not a valid bench slot")
     return 423+n*117, 760
 
 
@@ -298,6 +309,8 @@ def get_bench_pos(n):
 # col: 0-6
 # row: 0-3
 def get_board_pos(col, row):
+    if col < 0 or col > 6 or row < 0 or row > 3:
+        raise Exception(str(col) + "," + str(row) + " is not a valid board position")
     x, y = 0, 0
     if row == 0:
         x, y = 562, 410
@@ -416,8 +429,6 @@ def carousel(target_items, stage_number):
                         break
 
 
-
-
 # private function, returns image of requested item
 def get_item_img(item):
     return {
@@ -483,7 +494,7 @@ def items():
 
         item_name = (''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s.isalpha()))
         item_name = ' '.join([w for w in item_name.split() if len(w)>3 or w == 'of'])
-        if item_name != '':
+        if item_name != '' and item_name[0].isupper():
             item_inventory[i] = (''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s != '\n'))
 
     return item_inventory
@@ -590,6 +601,8 @@ def unbench_unit(current_bench, unit, col, row):
 
 
 def buy_slot(n):
+    if n < 0 or n > 4:
+        raise Exception(str(n) + " is not between 0 and 4")
     time.sleep(0.1)
     click(576+n*204, 994)
     time.sleep(0.1)
@@ -611,32 +624,33 @@ def amount_of_unit_on_bench(bench, unit):
 
 
 def accept_queue():
-    while early_stage() != 11:
-        method = cv2.TM_SQDIFF_NORMED
-        threshold = 0.2
+    method = cv2.TM_SQDIFF_NORMED
+    threshold = 0.2
 
-        accept_img = cv2.imread("accept_queue.png")
+    accept_img = cv2.imread("accept_queue.png")
 
-        while stage() != 11:
-            img = Image.frombytes('RGB', (1920, 1080), sct.grab({'top': 0, 'left': 0, 'width': 1920, 'height': 1080}).rgb)
-            screen = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    while not wait_until_game_start():
+        img = Image.frombytes('RGB', (1920, 1080), sct.grab({'top': 0, 'left': 0, 'width': 1920, 'height': 1080}).rgb)
+        screen = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-            result = cv2.matchTemplate(accept_img, screen, method)
+        result = cv2.matchTemplate(accept_img, screen, method)
 
-            # We want the minimum squared difference
-            mn, _, mnLoc, _ = cv2.minMaxLoc(result)
+        # We want the minimum squared difference
+        mn, _, mnLoc, _ = cv2.minMaxLoc(result)
 
-            MPx, MPy = mnLoc
+        MPx, MPy = mnLoc
 
-            trows, tcols = accept_img.shape[:2]
+        trows, tcols = accept_img.shape[:2]
 
-            if mn <= threshold:
-                click(MPx + int(tcols / 2), MPy + int(trows / 2))
-                break
+        if mn <= threshold:
+            click(MPx + int(tcols / 2), MPy + int(trows / 2))
 
 
 # 0-4
 def get_shop_slot_cost(n):
+    if n < 0 or n > 4:
+        raise Exception(str(n) + " is not a valid shop slot")
+
     img = Image.frombytes('RGB', (24, 22), sct.grab({'top': 1043, 'left': 648+n*201, 'width': 24, 'height': 22}).rgb)
     img = img.resize((24 * 4, 22 * 4))
     if ''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s.isdigit()) != '':
@@ -644,6 +658,123 @@ def get_shop_slot_cost(n):
     else:
         return -1
 
+
+def set_up_jade_statue(positions, ignore_positions):
+    method = cv2.TM_SQDIFF_NORMED
+    threshold = 0.3
+
+    jade_statue_img = cv2.imread('jade_statue.png')
+
+    w, h = 978, 358
+
+    cover_spots = []
+
+    for n in range(len(positions)):
+        if ignore_positions[n]:
+            x, y = get_board_pos(positions[n][0], positions[n][1])
+            cover_spots.append([x, y])
+
+    while False in ignore_positions:
+        img = Image.frombytes('RGB', (w, h), sct.grab({'top': 382, 'left': 428, 'width': w, 'height': h}).rgb)
+        img_array = np.array(img)
+
+        # cover already positioned jades
+        for coordinate in cover_spots:
+            x, y = coordinate[0], coordinate[1]
+            cv2.rectangle(img_array, (x - 20 - 428, y - 40 - 382), (x + 20 - 428, y + 40 - 382), (0, 0, 0), -1)
+
+        screen = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+        result = cv2.matchTemplate(jade_statue_img, screen, method)
+
+        # We want the minimum squared difference
+        mn, _, mnLoc, _ = cv2.minMaxLoc(result)
+        MPx, MPy = mnLoc
+        trows, tcols = jade_statue_img.shape[:2]
+
+        if mn <= threshold:
+            x1, y1 = MPx + 428 + int(tcols / 2), MPy + 382 + int(trows / 2)
+            win32api.SetCursorPos((x1, y1))
+            img = Image.frombytes('RGB', (120, 24), sct.grab(
+                {'top': y1 - 70, 'left': x1 + 200, 'width': 120, 'height': 24}).rgb)
+            unit_name = (''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s.isalpha()))
+
+            if 'jade' in unit_name.lower():
+                i = -1
+                for n in range(len(ignore_positions)):
+                    if not ignore_positions:
+                        i = n
+                        break
+                x2, y2 = get_board_pos(positions[i][0], positions[i][1])
+                drag(x1, y1, x2, y2)
+                ignore_positions[i] = True
+                cover_spots.append([x2, y2])
+            # not actually a jade statue
+            else:
+                cover_spots.append[MPx + 428 + int(tcols / 2), MPy + 382 + int(trows / 2)]
+
+        else:
+            break
+
+
+def set_up_jade_statue2(positions):
+    method = cv2.TM_SQDIFF_NORMED
+    threshold = 0.3
+
+    jade_statue_img = cv2.imread('jade_statue.png')
+
+    w, h = 978, 358
+
+    cover_spots = []
+
+    for i in range(len(positions)):
+        img = Image.frombytes('RGB', (w, h), sct.grab({'top': 382, 'left': 428, 'width': w, 'height': h}).rgb)
+        img_array = np.array(img)
+
+        # cover already positioned jades
+        for coordinate in cover_spots:
+            x, y = coordinate[0], coordinate[1]
+            cv2.rectangle(img_array, (x - 20 - 428, y - 40 - 382), (x + 20 - 428, y + 40 - 382), (0, 0, 0), -1)
+
+        screen = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+        result = cv2.matchTemplate(jade_statue_img, screen, method)
+
+        # We want the minimum squared difference
+        mn, _, mnLoc, _ = cv2.minMaxLoc(result)
+        MPx, MPy = mnLoc
+        trows, tcols = jade_statue_img.shape[:2]
+
+        if mn <= threshold:
+            x1, y1 = MPx + 428 + int(tcols / 2), MPy + 382 + int(trows / 2)
+            win32api.SetCursorPos((x1, y1))
+            img = Image.frombytes('RGB', (120, 24), sct.grab(
+                {'top': y1 - 70, 'left': x1 + 200, 'width': 120, 'height': 24}).rgb)
+            unit_name = (''.join(s for s in pytesseract.image_to_string(img, config='--psm 6') if s.isalpha()))
+
+            if 'jade' in unit_name.lower():
+                x2, y2 = get_board_pos(positions[i][0], positions[i][1])
+                drag(x1, y1, x2, y2)
+                cover_spots.append([x2, y2])
+            # not actually a jade statue
+            else:
+                cover_spots.append([MPx + 428 + int(tcols / 2), MPy + 382 + int(trows / 2)])
+            time.sleep(0.2)
+
+        else:
+            break
+
+
+def wait_until_game_start():
+    method = cv2.TM_SQDIFF_NORMED
+    threshold = 0.1
+    img = Image.frombytes('RGB', (90, 30), sct.grab({'top': 5, 'left': 800, 'width': 90, 'height': 30}).rgb)
+    start_stage_img = cv2.imread("start_stage.png")
+    screen = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    result = cv2.matchTemplate(start_stage_img, screen, method)
+
+    # We want the minimum squared difference
+    mn, _, mnLoc, _ = cv2.minMaxLoc(result)
+
+    return mn <= threshold
 
 
 
