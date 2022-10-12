@@ -3,37 +3,47 @@ import win32api
 import TFTapi
 import time
 from waiting import wait
+import tkinter as tk
 
 
 # COMP VARIABLES
 
-# order specifies priority
-jade = True
-jade_statue_positions = [[3, 1], [6, 2]]
-placed_jade_statues = [False, False]
-
-
-target_units = ['wukong', 'jax', 'shi', 'bard', 'jayce', 'gnar', 'olaf', 'yasuo', 'yone', 'karma']
-# col, then row
-unit_positions = [[2, 1], [3, 0], [4, 0], [6, 3], [5, 2], [5, 1], [4, 1], [3, 2], [6, 1], [4, 3]]
+target_units = ['nidalee', 'skarner', 'vlad', 'lux', 'varus', 'sylas']
+# [column, row]
+unit_positions = [[1, 1], [2, 0], [3, 0], [0, 3], [1, 3], [4, 0]]
 # set ideal amount of each unit
-target_amount = [9, 9, 3, 3, 3, 3, 3, 3]
+target_amount = [9, 9, 9, 9, 3, 3, 3]
 # set ideal augments (order matters) and unplayable augments
-target_augments = ["Weakspot", "Feather", "Thrill", "Celestial", "Ascension"]
+target_augments = ["Weakspot", "Feather", "Thrill", "Celestial"]
 avoid_augments = ["Soul", "Heart", "Crest", "Built Different", "Double", "Big", "Lategame", "Luden",
                   "Exile", "Recombobulator", "Tri", "Stand", "Mind", "Axiom", "Ancient", "Den", "Friend", "Dragon",
                   "Gear", "Future", "Heroic", "Hot", "Hustler", "Hallucinate", "Mage",
                   "Gifts", "Loot", "Party", "Penitence", "Inspire", "Storm", "Eternal", "Ricochet",
                   "Titanic", "Tiamat", "Trade", "Binary", "Cavalier", "Cursed", "Cruel", "Think", "Phony", "Forge",
                   "Radiant", "Essence"]
+
 # set ideal items (one is the total set of components, other is formatted as full items)
 # i, j, k
 # i refers to which unit
 # j refers to which item slot (3 for each unit)
 # k refers to option(s) for that item slot (items and its alternatives basically)
 # l refers to the components of each item
-target_items = [[[["bow", "bow"]], [["sword", "sword"], ["bow", "rod"]], [["sword", "glove"], ["sword", "bow"]]], [[["belt", "chain"]], [["belt", "belt"], ["cloak", "vest"], ["vest", "vest"]], [["chain", "tear"]]], [], [], [], [], [], []]
+target_items = [
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                [],
+                []
+                ]
+
+# NOT FOR USE
 target_components = []
+
 for unit in target_items:
     for item_slot in unit:
         for item in item_slot:
@@ -45,14 +55,14 @@ for unit in target_items:
     unitemized_units.append(not unit)
 
 
-# STATE VARIABLES
+# STATE VARIABLES (NOT FOR USE)
 
 gold = 0
 stage = 10
 level = 0
-fielded_units = [False, False, False, False, False, False, False, False]
+fielded_units = [False, False, False, False, False, False, False, False, False, False]
 number_fielded = 0
-filled_units = [False, False, False, False, False, False, False, False]
+filled_units = [False, False, False, False, False, False, False, False, False, False]
 number_filled = 0
 
 
@@ -60,9 +70,36 @@ items = []
 augment_reroll_left = True
 
 
+# GUI variables and functions
+# root = tk.Tk()
+
+# gold_text = tk.StringVar()
+# gold_text.set("Gold: " + str(gold))
+# gold_label = tk.Label(root, textvariable=gold_text)
+# gold_label.pack()
+
+# stage_text = tk.StringVar()
+# stage_text.set("Stage: " + str(stage%10) + "-" + str(stage/10))
+# stage_label = tk.Label(root, textvariable=stage_text)
+# stage_label.pack()
+
+
+def update_gui_variables():
+    global gold_text
+    global gold
+    global gold_label
+    global stage
+    global stage_text
+    global stage_label
+    # gold_text.set("Gold: " + str(gold))
+    # stage_text.set("Stage: " + str(stage % 10) + "-" + str(stage / 10))
+    # root.update_idletasks()
+
+
 # SCRIPT FUNCTIONS
 
 def wait_until_next_stage():
+    update_gui_variables()
     global stage
     read_stage = TFTapi.stage()
     if read_stage == stage+1 or (read_stage % 10 == 1 and int(read_stage/10) == int(stage/10) + 1):
@@ -75,6 +112,7 @@ def wait_until_next_stage():
 
 
 def wait_until_next_early_stage():
+    update_gui_variables()
     global stage
     read_stage = TFTapi.early_stage()
     if read_stage == stage+1 or (read_stage % 10 == 1 and int(read_stage/10) == int(stage/10) + 1):
@@ -244,11 +282,9 @@ def set_up_board():
                 bench[bench_index] = target_units[replace_index]
                 fielded_units[i] = True
                 fielded_units[replace_index] = False
-        if jade and False in placed_jade_statues:
-            TFTapi.set_up_jade_statue2(jade_statue_positions)
     print("fielded units:")
     print(fielded_units)
-    print(number_fielded)
+    print("number fielded: " + str(number_fielded))
 
     return bench
 
@@ -308,13 +344,15 @@ def fill_board(shop_slots, bench_slots):
     global number_fielded
     num_units = number_fielded + number_filled
 
+    print("shop_slots:" + str(shop_slots))
+
     current_level = TFTapi.level()
     for i in range(current_level-num_units):
         bench_index = bench_slots.index("")
         slot = -1
         for n in range(len(shop_slots)):
-            if n != -1 and n < 6:
-                slot = shop_slots.index(False)
+            if shop_slots[n] != -1 and shop_slots[n] < 6:
+                slot = n
                 break
         TFTapi.buy_slot(slot)
         shop_slots[slot] = -1
@@ -327,10 +365,9 @@ def fill_board(shop_slots, bench_slots):
         col, row = unit_positions[fill_in_index]
         TFTapi.field_unit(bench_index, col, row)
         number_filled = number_filled + 1
-        time.sleep(0.1)
     print("filled units:")
     print(filled_units)
-    print(number_filled)
+    print("number filled: " + str(number_filled))
 
 
 def spend_gold(gold, stage, target_amount):
@@ -355,19 +392,17 @@ print("   ╚═╝   ╚═╝        ╚═╝   ╚═════╝  ╚═
 print()
 print("Queue up to start...")
 
-# TFTapi.accept_queue()
-print("Starting game")
+TFTapi.accept_queue()
 
 # augments occur at stage 2-1, 3-2, 5-1
 # creeps occur at stage 1-2, 1-3, 1-4, 2-7, 3-7, 4-7 (dragon treasure), 5-7, 6-7, 7-7
 # carousels occur at stage 1-1, 2-4, 3-4, 4-4, 5-4, 6-4, 7-4
 
 # STAGE 1
-TFTapi.accept_queue()
 print("GAME START")
 wait(lambda: TFTapi.wait_until_game_start(), timeout_seconds=60, waiting_for="1-1")
 time.sleep(6)
-TFTapi.carousel(target_items, 11)
+TFTapi.carousel(target_components, 11)
 stage = 11
 
 wait(lambda: wait_until_next_early_stage(), timeout_seconds=60, waiting_for="1-2")
@@ -403,7 +438,7 @@ fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 carousel_unit_slot = TFTapi.clear_bench(target_units, target_amount)
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-4")
-TFTapi.carousel(target_items, 24)
+TFTapi.carousel(target_components, 24)
 
 # EDGE CASE, CAROUSEL UNIT COMBINES INTO 2*/3*
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-5")
@@ -422,24 +457,4 @@ fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
 TFTapi.collect_items(25, True)
 
-wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="3-1")
-current_shop = spend_gold(50)
-fill_board(current_shop, set_up_board())
-TFTapi.clear_bench(target_units, target_amount)
-
-wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="3-2")
-decide_augment()
-time.sleep(2)
-current_shop = spend_gold(50)
-fill_board(current_shop, set_up_board())
-TFTapi.clear_bench(target_units, target_amount)
-
-wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="3-3")
-current_shop = spend_gold(50)
-fill_board(current_shop, set_up_board())
-TFTapi.clear_bench(target_units, target_amount)
-
-wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="3-4")
-time.sleep(3)
-TFTapi.carousel(target_items, 24)
-
+# root.mainloop()
