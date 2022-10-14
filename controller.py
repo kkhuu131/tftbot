@@ -3,8 +3,9 @@ import win32api
 import TFTapi
 import time
 from waiting import wait
-import tkinter as tk
+import curses
 
+stdscr = curses.initscr()
 
 # COMP VARIABLES
 
@@ -60,14 +61,19 @@ for unit in target_items:
 gold = 0
 stage = 10
 level = 0
-fielded_units = [False, False, False, False, False, False, False, False, False, False]
+fielded_units = []
 number_fielded = 0
-filled_units = [False, False, False, False, False, False, False, False, False, False]
+filled_units = []
 number_filled = 0
+
+for i in range(len(target_units)):
+    fielded_units.append(False)
+    filled_units.append(False)
 
 
 items = []
 augment_reroll_left = True
+augments = []
 
 
 # GUI variables and functions
@@ -104,7 +110,6 @@ def wait_until_next_stage():
     read_stage = TFTapi.stage()
     if read_stage == stage+1 or (read_stage % 10 == 1 and int(read_stage/10) == int(stage/10) + 1):
         stage = read_stage
-        print("Stage " + str(int(stage/10)) + "-" + str(int(stage % 10)))
         time.sleep(1.5)
         return True
     else:
@@ -117,7 +122,6 @@ def wait_until_next_early_stage():
     read_stage = TFTapi.early_stage()
     if read_stage == stage+1 or (read_stage % 10 == 1 and int(read_stage/10) == int(stage/10) + 1):
         stage = read_stage
-        print("Stage " + str(int(stage/10)) + "-" + str(int(stage % 10)))
         time.sleep(1.5)
         return True
     else:
@@ -141,7 +145,6 @@ def have_components(c1, c2):
 def slam_items():
     global items
     items = TFTapi.items()
-    print("items: " + str(items))
 
     priority_components = []
 
@@ -154,11 +157,6 @@ def slam_items():
                 if item[0] not in priority_components and item[1] not in priority_components:
                     i, j = have_full_item(item[0], item[1], items)
                     if i != -1 and fielded_units[0]:
-                        print("Making " + item[0] + "+" + item[1] + " on " + target_units[unit_index])
-                        print(i)
-                        print(items[i])
-                        print(j)
-                        print(items[j])
                         items1x, items1y = TFTapi.get_items_pos(i)
                         items2x, items2y = TFTapi.get_items_pos(j)
                         unitx, unity = TFTapi.get_board_pos(unit_positions[unit_index][0], unit_positions[unit_index][1])
@@ -190,7 +188,6 @@ def slam_items():
                         unit_index = n
                         break
                 if unit_index != -1:
-                    print("Slamming (" + items[i].lower() + ") on " + target_units[unit_index])
                     itemsx, itemsy = TFTapi.get_items_pos(i)
                     x, y = TFTapi.get_board_pos(unit_positions[unit_index][0], unit_positions[unit_index][1])
                     TFTapi.drag(itemsx, itemsy, x, y)
@@ -208,8 +205,12 @@ def have_full_item(c1, c2, items):
 
 
 def decide_augment():
+    augment = ""
+
     augments = TFTapi.read_augments()
     priority_order = [len(target_augments), len(target_augments), len(target_augments)]
+
+    # calculate priorities of augments based on desired and avoided info
     for i in range(len(augments)):
         for j in range(len(avoid_augments)):
             if j < len(target_augments) and target_augments[j].lower() in augments[i].lower():
@@ -221,12 +222,17 @@ def decide_augment():
 
     highest_priority = min(priority_order)
     global augment_reroll_left
+    # if all should be avoided
     if highest_priority == len(target_augments)+1 and augment_reroll_left:
         TFTapi.reroll_augment()
         augment_reroll_left = False
-        decide_augment()
+        augment = decide_augment()
     else:
-        TFTapi.pick_augment(priority_order.index(highest_priority))
+        # decide
+        index = priority_order.index(highest_priority)
+        TFTapi.pick_augment(index)
+        augment = augments[index]
+    return augment
 
 
 def set_up_board():
@@ -282,10 +288,6 @@ def set_up_board():
                 bench[bench_index] = target_units[replace_index]
                 fielded_units[i] = True
                 fielded_units[replace_index] = False
-    print("fielded units:")
-    print(fielded_units)
-    print("number fielded: " + str(number_fielded))
-
     return bench
 
 
@@ -344,8 +346,6 @@ def fill_board(shop_slots, bench_slots):
     global number_fielded
     num_units = number_fielded + number_filled
 
-    print("shop_slots:" + str(shop_slots))
-
     current_level = TFTapi.level()
     for i in range(current_level-num_units):
         bench_index = bench_slots.index("")
@@ -365,32 +365,31 @@ def fill_board(shop_slots, bench_slots):
         col, row = unit_positions[fill_in_index]
         TFTapi.field_unit(bench_index, col, row)
         number_filled = number_filled + 1
-    print("filled units:")
-    print(filled_units)
-    print("number filled: " + str(number_filled))
 
 
-def spend_gold(gold, stage, target_amount):
-    if stage % 10 == 3:
-        if target_amount[0] > 0:
-            while TFTapi.gold() > 50 and target_amount[0] > 0:
-                current_shop = TFTapi.buy_out_units(target_units, target_amount)
-                TFTapi.roll()
-                time.sleep(0.1)
-        else:
-            while TFTapi.gold() > 50 and TFTapi.level() < 7:
-                TFTapi.level_up()
-    return current_shop
+def display_state():
+    stdscr.clear()
+
+    stdscr.addstr("Comp: " + str(target_units) + "\n")
+
+    stdscr.addstr("Stage: " + str(int(stage/10)) + "-" + str(int(stage % 10)) + "\n")
+    stdscr.addstr("Gold: " + str(gold) + "\n")
+    stdscr.addstr("Items: " + str(items) + "\n")
+    stdscr.addstr("Augments: " + str(augments) + "\n")
+
+    stdscr.refresh()
 
 
-print("████████╗███████╗████████╗██████╗  ██████╗ ████████╗")
-print("╚══██╔══╝██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗╚══██╔══╝")
-print("   ██║   █████╗     ██║   ██████╔╝██║   ██║   ██║   ")
-print("   ██║   ██╔══╝     ██║   ██╔══██╗██║   ██║   ██║   ")
-print("   ██║   ██║        ██║   ██████╔╝╚██████╔╝   ██║   ")
-print("   ╚═╝   ╚═╝        ╚═╝   ╚═════╝  ╚═════╝    ╚═╝   ")
-print()
-print("Queue up to start...")
+# START
+stdscr.clear()
+stdscr.addstr("████████╗███████╗████████╗██████╗  ██████╗ ████████╗\n")
+stdscr.addstr("╚══██╔══╝██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗╚══██╔══╝\n")
+stdscr.addstr("   ██║   █████╗     ██║   ██████╔╝██║   ██║   ██║   \n")
+stdscr.addstr("   ██║   ██╔══╝     ██║   ██╔══██╗██║   ██║   ██║   \n")
+stdscr.addstr("   ██║   ██║        ██║   ██████╔╝╚██████╔╝   ██║   \n")
+stdscr.addstr("   ╚═╝   ╚═╝        ╚═╝   ╚═════╝  ╚═════╝    ╚═╝   \n")
+stdscr.addstr("Queue up to start...\n")
+stdscr.refresh()
 
 TFTapi.accept_queue()
 
@@ -398,16 +397,18 @@ TFTapi.accept_queue()
 # creeps occur at stage 1-2, 1-3, 1-4, 2-7, 3-7, 4-7 (dragon treasure), 5-7, 6-7, 7-7
 # carousels occur at stage 1-1, 2-4, 3-4, 4-4, 5-4, 6-4, 7-4
 
+
 # STAGE 1
-print("GAME START")
 wait(lambda: TFTapi.wait_until_game_start(), timeout_seconds=60, waiting_for="1-1")
 time.sleep(6)
 TFTapi.carousel(target_components, 11)
 stage = 11
+display_state()
 
 wait(lambda: wait_until_next_early_stage(), timeout_seconds=60, waiting_for="1-2")
 TFTapi.field_unit(0, 0, 0)
 TFTapi.collect_items(6, True)
+display_state()
 
 wait(lambda: wait_until_next_early_stage(), timeout_seconds=60, waiting_for="1-3")
 x, y = TFTapi.get_board_pos(0,0)
@@ -416,45 +417,51 @@ TFTapi.sell()
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.collect_items(10, False)
 TFTapi.clear_bench(target_units, target_amount)
+display_state()
 
 wait(lambda: wait_until_next_early_stage(), timeout_seconds=60, waiting_for="1-4")
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
+display_state()
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-1")
-decide_augment()
+augments.append(decide_augment())
 time.sleep(2)
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.collect_items(5, False)
 TFTapi.clear_bench(target_units, target_amount)
 slam_items()
+display_state()
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-2")
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
+display_state()
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-3")
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 carousel_unit_slot = TFTapi.clear_bench(target_units, target_amount)
+display_state()
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-4")
 TFTapi.carousel(target_components, 24)
+display_state()
 
-# EDGE CASE, CAROUSEL UNIT COMBINES INTO 2*/3*
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-5")
 x, y = TFTapi.get_bench_pos(carousel_unit_slot)
 win32api.SetCursorPos((x, y))
 TFTapi.sell()
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
+display_state()
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-6")
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
+display_state()
 
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-7")
 fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
 TFTapi.collect_items(25, True)
-
-# root.mainloop()
+display_state()
