@@ -5,11 +5,19 @@ import time
 from waiting import wait
 import curses
 
+
+# Curses set up (dynamic terminal)
 stdscr = curses.initscr()
+curses.start_color()
+curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
+curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_BLACK)
+curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
+
 
 # COMP VARIABLES
 
-target_units = ['nidalee', 'skarner', 'vlad', 'lux', 'varus', 'sylas']
+target_units = ['nidalee', 'skarn', 'viad', 'lux', 'varus', 'sylas']
 # [column, row]
 unit_positions = [[1, 1], [2, 0], [3, 0], [0, 3], [1, 3], [4, 0]]
 # set ideal amount of each unit
@@ -30,7 +38,8 @@ avoid_augments = ["Soul", "Heart", "Crest", "Built Different", "Double", "Big", 
 # k refers to option(s) for that item slot (items and its alternatives basically)
 # l refers to the components of each item
 target_items = [
-                [],
+                [[["bow", "vest"], ["bow", "rod"]], [["glove", "tear"], ["sword", "cloak"]], [[["sword", "glove"]]]],
+
                 [],
                 [],
                 [],
@@ -90,22 +99,10 @@ augments = []
 # stage_label.pack()
 
 
-def update_gui_variables():
-    global gold_text
-    global gold
-    global gold_label
-    global stage
-    global stage_text
-    global stage_label
-    # gold_text.set("Gold: " + str(gold))
-    # stage_text.set("Stage: " + str(stage % 10) + "-" + str(stage / 10))
-    # root.update_idletasks()
-
-
 # SCRIPT FUNCTIONS
 
 def wait_until_next_stage():
-    update_gui_variables()
+    """Pauses program until next stage is reached. Does not work for stage 1."""
     global stage
     read_stage = TFTapi.stage()
     if read_stage == stage+1 or (read_stage % 10 == 1 and int(read_stage/10) == int(stage/10) + 1):
@@ -117,7 +114,7 @@ def wait_until_next_stage():
 
 
 def wait_until_next_early_stage():
-    update_gui_variables()
+    """Pauses program until next stage is reached. Only works for stage 1"""
     global stage
     read_stage = TFTapi.early_stage()
     if read_stage == stage+1 or (read_stage % 10 == 1 and int(read_stage/10) == int(stage/10) + 1):
@@ -128,21 +125,9 @@ def wait_until_next_early_stage():
         return False
 
 
-def have_components(c1, c2):
-    have1 = -1
-    have2 = -1
-    for i in range(len(items)):
-        if c1 in items[i]:
-            have1 = i
-
-    for i in range(len(items)):
-        if i != have1 and c2 in items[i]:
-            have2 = i
-
-    return have1, have2
-
-
 def slam_items():
+    """Combines any items that we can make on to the according unit. Then slams unneeded components randomly."""
+
     global items
     items = TFTapi.items()
 
@@ -195,6 +180,7 @@ def slam_items():
 
 
 def have_full_item(c1, c2, items):
+    """Checks if we have both components. Returns associated indexes, otherwise -1 if we don't."""
     for i in range(len(items)):
         for j in range(len(items)):
             if i != j and items[i] != '' and items[j] != '':
@@ -205,8 +191,8 @@ def have_full_item(c1, c2, items):
 
 
 def decide_augment():
+    """Based on our priority augments and augments we want to avoid, selects the best augment possible."""
     augment = ""
-
     augments = TFTapi.read_augments()
     priority_order = [len(target_augments), len(target_augments), len(target_augments)]
 
@@ -236,6 +222,7 @@ def decide_augment():
 
 
 def set_up_board():
+    """Sets up the board by fielding and filling in board slots and replacing units on board."""
     global level
     level = TFTapi.level()
     global number_fielded
@@ -292,6 +279,7 @@ def set_up_board():
 
 
 def add_in_dragon(level, i, bench):
+    """Adds in a dragon unit (that takes 2 slots). NOT TESTED."""
     global number_fielded
     global number_filled
     space_available = 0
@@ -342,6 +330,7 @@ def add_in_dragon(level, i, bench):
 
 # fill board with units from shop
 def fill_board(shop_slots, bench_slots):
+    """Places in filler units for board positions if the position isn't occupied by a target unit."""
     global number_filled
     global number_fielded
     num_units = number_fielded + number_filled
@@ -368,16 +357,66 @@ def fill_board(shop_slots, bench_slots):
 
 
 def display_state():
+    """Displays current stats of game using a dynamic text terminal."""
     stdscr.clear()
 
-    stdscr.addstr("Comp: " + str(target_units) + "\n")
+    stdscr.addstr("Comp: ", curses.color_pair(1))
+    for i in range(len(target_units)):
+        if fielded_units[i]:
+            stdscr.addstr(str(target_units[i]), curses.color_pair(2))
+        elif filled_units[i]:
+            stdscr.addstr(str(target_units[i]), curses.color_pair(3))
+        else:
+            stdscr.addstr(str(target_units[i]), curses.color_pair(4))
 
-    stdscr.addstr("Stage: " + str(int(stage/10)) + "-" + str(int(stage % 10)) + "\n")
-    stdscr.addstr("Gold: " + str(gold) + "\n")
-    stdscr.addstr("Items: " + str(items) + "\n")
-    stdscr.addstr("Augments: " + str(augments) + "\n")
+        if i == len(target_units)-1:
+            stdscr.addstr("\n")
+        else:
+            stdscr.addstr(", ")
+
+    stdscr.addstr("Stage: ", curses.color_pair(1))
+    stdscr.addstr(str(int(stage/10)) + "-" + str(int(stage % 10)) + "\n")
+    stdscr.addstr("Gold: ", curses.color_pair(1))
+    stdscr.addstr(str(gold) + "\n")
+    stdscr.addstr("Items: ", curses.color_pair(1))
+    stdscr.addstr(str(items) + "\n")
+    stdscr.addstr("Augments: ", curses.color_pair(1))
+    stdscr.addstr(str(augments) + "\n")
+    stdscr.addstr("\n")
+    display_board()
 
     stdscr.refresh()
+
+
+def display_board():
+    """Dynamically displays the current board of the game on the terminal."""
+
+    global target_units, unit_positions, fielded_units, filled_units
+
+    stdscr.addstr('    0  1  2  3  4  5  6 \n')
+
+    # for each row
+    for i in range(0, 4):
+        if i % 2 == 0:
+            stdscr.addstr(str(i) + "  ")
+        else:
+            stdscr.addstr(str(i) + "   ")
+        # for each column
+        for j in range(0, 7):
+            stdscr.addstr("[")
+            if [j, i] in unit_positions:
+                index = unit_positions.index([j, i])
+                if fielded_units[index]:
+                    stdscr.addstr((target_units[index][0]).upper(), curses.color_pair(2))
+                elif filled_units[index]:
+                    stdscr.addstr("#", curses.color_pair(3))
+                else:
+                    stdscr.addstr("X", curses.color_pair(4))
+            else:
+                stdscr.addstr(" ")
+            stdscr.addstr("]")
+
+        stdscr.addstr("\n")
 
 
 # START
