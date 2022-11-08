@@ -18,6 +18,7 @@ curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
 # COMP VARIABLES
 
 target_units = ['nidalee', 'skarn', 'viad', 'lux', 'varus', 'sylas']
+unit_tiers = [1, 1, 1, 2, 3, 3]
 # [column, row]
 unit_positions = [[1, 1], [2, 0], [3, 0], [0, 3], [1, 3], [4, 0]]
 # set ideal amount of each unit
@@ -83,20 +84,6 @@ for i in range(len(target_units)):
 items = []
 augment_reroll_left = True
 augments = []
-
-
-# GUI variables and functions
-# root = tk.Tk()
-
-# gold_text = tk.StringVar()
-# gold_text.set("Gold: " + str(gold))
-# gold_label = tk.Label(root, textvariable=gold_text)
-# gold_label.pack()
-
-# stage_text = tk.StringVar()
-# stage_text.set("Stage: " + str(stage%10) + "-" + str(stage/10))
-# stage_label = tk.Label(root, textvariable=stage_text)
-# stage_label.pack()
 
 
 # SCRIPT FUNCTIONS
@@ -356,8 +343,14 @@ def fill_board(shop_slots, bench_slots):
         number_filled = number_filled + 1
 
 
+match_data = []
+
+
 def display_state():
     """Displays current stats of game using a dynamic text terminal."""
+    global match_data
+    match_data.append([target_units, stage, gold, items, augments, unit_positions, fielded_units, filled_units])
+
     stdscr.clear()
 
     stdscr.addstr("Comp: ", curses.color_pair(1))
@@ -419,6 +412,70 @@ def display_board():
         stdscr.addstr("\n")
 
 
+def display_state_i(i):
+    """Displays stats of game at different stages using a dynamic text terminal."""
+    global match_data
+    target_units = match_data[i][0]
+    stage = match_data[i][1]
+    gold = match_data[i][2]
+    items = match_data[i][3]
+    augments = match_data[i][4]
+    unit_positions = match_data[i][5]
+    fielded_units = match_data[i][6]
+    filled_units = match_data[i][7]
+    stdscr.clear()
+
+    stdscr.addstr("Comp: ", curses.color_pair(1))
+    for i in range(len(target_units)):
+        if fielded_units[i]:
+            stdscr.addstr(str(target_units[i]), curses.color_pair(2))
+        elif filled_units[i]:
+            stdscr.addstr(str(target_units[i]), curses.color_pair(3))
+        else:
+            stdscr.addstr(str(target_units[i]), curses.color_pair(4))
+
+        if i == len(target_units)-1:
+            stdscr.addstr("\n")
+        else:
+            stdscr.addstr(", ")
+
+    stdscr.addstr("Stage: ", curses.color_pair(1))
+    stdscr.addstr(str(int(stage/10)) + "-" + str(int(stage % 10)) + "\n")
+    stdscr.addstr("Gold: ", curses.color_pair(1))
+    stdscr.addstr(str(gold) + "\n")
+    stdscr.addstr("Items: ", curses.color_pair(1))
+    stdscr.addstr(str(items) + "\n")
+    stdscr.addstr("Augments: ", curses.color_pair(1))
+    stdscr.addstr(str(augments) + "\n")
+    stdscr.addstr("\n")
+    stdscr.addstr('    0  1  2  3  4  5  6 \n')
+
+    # for each row
+    for i in range(0, 4):
+        if i % 2 == 0:
+            stdscr.addstr(str(i) + "  ")
+        else:
+            stdscr.addstr(str(i) + "   ")
+        # for each column
+        for j in range(0, 7):
+            stdscr.addstr("[")
+            if [j, i] in unit_positions:
+                index = unit_positions.index([j, i])
+                if fielded_units[index]:
+                    stdscr.addstr((target_units[index][0]).upper(), curses.color_pair(2))
+                elif filled_units[index]:
+                    stdscr.addstr("#", curses.color_pair(3))
+                else:
+                    stdscr.addstr("X", curses.color_pair(4))
+            else:
+                stdscr.addstr(" ")
+            stdscr.addstr("]")
+
+        stdscr.addstr("\n")
+
+    stdscr.refresh()
+
+
 # START
 stdscr.clear()
 stdscr.addstr("████████╗███████╗████████╗██████╗  ██████╗ ████████╗\n")
@@ -435,7 +492,6 @@ TFTapi.accept_queue()
 # augments occur at stage 2-1, 3-2, 5-1
 # creeps occur at stage 1-2, 1-3, 1-4, 2-7, 3-7, 4-7 (dragon treasure), 5-7, 6-7, 7-7
 # carousels occur at stage 1-1, 2-4, 3-4, 4-4, 5-4, 6-4, 7-4
-
 
 # STAGE 1
 wait(lambda: TFTapi.wait_until_game_start(), timeout_seconds=60, waiting_for="1-1")
@@ -463,6 +519,7 @@ fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
 display_state()
 
+# STAGE 2
 wait(lambda: wait_until_next_stage(), timeout_seconds=60, waiting_for="2-1")
 augments.append(decide_augment())
 time.sleep(2)
@@ -504,3 +561,23 @@ fill_board(TFTapi.buy_out_units(target_units, target_amount), set_up_board())
 TFTapi.clear_bench(target_units, target_amount)
 TFTapi.collect_items(25, True)
 display_state()
+
+# END
+i = len(match_data)
+while True:
+    key = stdscr.getkey()
+    if key == "KEY_LEFT":
+        i += 1
+        i %= len(match_data)
+    elif key == "KEY_RIGHT":
+        i -= 1
+        i %= len(match_data)
+    elif key == "Q":
+        break
+    stdscr.clear()
+    display_state_i(i)
+    stdscr.refresh()
+
+
+
+

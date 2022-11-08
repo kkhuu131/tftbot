@@ -1,3 +1,5 @@
+from scipy.stats import hypergeom
+
 # probabilities of 1,2,3,4,5 costs at levels 1-10
 level_chart = [
     [1, 0, 0, 0, 0],
@@ -68,16 +70,68 @@ def n_exp_unit(level, tier, taken, rolls):
     return rolls*5*(get_tier_probability(level, tier)*(1.0/get_unique_units(tier)))*((get_unit_numbers(tier)-taken)/get_unit_numbers(tier))
 
 
-def prob_find_n_units(level, tier, rolls, n):
+def prob_find_n_units_base(level, tier, rolls, desired):
     """
-    Returns probability to find exactly n number of units in a given number of rolls.
+    Returns probability to find at least n number of units in a given number of rolls.
     """
-    desired_unit_total = get_unit_numbers(tier)
-    desired_units_left = get_unit_numbers(tier)
-    number_of_slots = rolls*5
 
-    number_of_tier_units = number_of_slots*(get_tier_probability(level, tier))
+    # Math from https://tft.teamward.xyz/
 
-    total_probability = 1
+    # first Hypergeometric distribution
+    # M: total balls, n: number of success balls, k: amount to get less than or equal to, N: total draws
+    M = get_unit_numbers(tier)*get_unique_units(tier) / get_tier_probability(level, tier)
+    n = get_unit_numbers(tier)
+    k = desired-1
+    N = 5*rolls
+    # probability to get < desired amount of units
+    cdf1 = hypergeom.cdf(k, M, n, N)
 
-    return 1
+    # second Hypergeometric distribution
+    # M: total balls, n: number of success balls, k: amount to get less than or equal to, N: total draws
+    M = 5*rolls + get_unit_numbers(tier) * get_unique_units(tier) / get_tier_probability(level, tier)
+    n = get_unit_numbers(tier)
+    k = desired - 1
+    N = 5 * rolls
+    # probability to get < desired amount of units
+    cdf2 = hypergeom.cdf(k, M, n, N)
+
+    # take average of both distributions
+    cdf = (cdf1+cdf2)/2
+
+    # probability to get at least desired amount of units
+    prob = 1-cdf
+    return prob
+
+
+def prob_find_n_units(level, tier, rolls, desired, desired_taken, same_tier_taken):
+    """
+    Returns probability to find at least n number of units in a given number of rolls.
+    """
+
+    # Math from https://tft.teamward.xyz/
+
+    # first Hypergeometric distribution
+    # M: total balls, n: number of success balls, k: amount to get less than or equal to, N: total draws
+    M = get_unit_numbers(tier)*get_unique_units(tier) - same_tier_taken / get_tier_probability(level, tier)
+    n = get_unit_numbers(tier)-desired_taken
+    k = desired-1
+    N = 5*rolls
+    # probability to get < desired amount of units
+    cdf1 = hypergeom.cdf(k, M, n, N)
+
+    # second Hypergeometric distribution
+    # M: total balls, n: number of success balls, k: amount to get less than or equal to, N: total draws
+    M = 5*rolls + get_unit_numbers(tier) * get_unique_units(tier) - same_tier_taken / get_tier_probability(level, tier)
+    n = get_unit_numbers(tier)-desired_taken
+    k = desired - 1
+    N = 5 * rolls
+    # probability to get < desired amount of units
+    cdf2 = hypergeom.cdf(k, M, n, N)
+
+    # take average of both distributions
+    cdf = (cdf1+cdf2)/2
+
+    # probability to get at least desired amount of units
+    prob = 1-cdf
+    return prob
+

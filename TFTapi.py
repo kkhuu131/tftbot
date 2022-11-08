@@ -58,6 +58,7 @@ def level():
         return -1
 
 
+# Set TFT key binds
 roll_key = 'd'
 level_key = 'f'
 sell_key = 'e'
@@ -163,32 +164,32 @@ def get_unit_img(unit):
     """Given a unit name, returns the according cv2 image object."""
 
     return {
-        'sett': cv2.imread('sett.png'),
-        'hecarim': cv2.imread('hecarim.png'),
-        'xayah': cv2.imread('xayah.png'),
-        'shen': cv2.imread('shen.png'),
-        'kayn': cv2.imread('kayn.png'),
-        'shyvana': cv2.imread('shyvana.png'),
-        'swain': cv2.imread('swain.png'),
-        'senna': cv2.imread('senna.png'),
-        'taric': cv2.imread('taric.png'),
-        'test': cv2.imread('sett.png'),
-        'kong': cv2.imread('wukong.png'),
-        'ab': cv2.imread('jax.png'),
-        'shi': cv2.imread('soy.png'),
-        'gnar': cv2.imread('gnar.png'),
-        'olaf': cv2.imread('olaf.png'),
-        'yone': cv2.imread('yone.png'),
-        'karma': cv2.imread('karma.png'),
-        'jayce': cv2.imread('jayce.png'),
-        'nidalee': cv2.imread('nidalee.png'),
-        'skarn': cv2.imread('skarner.png'),
-        'viad': cv2.imread('vladimir.png'),
-        'lux': cv2.imread('lux.png'),
-        'varus': cv2.imread('varus.png'),
-        'sylas': cv2.imread('sylas.png')
+        'sett': cv2.imread('images/shop_units/sett.png'),
+        'hecarim': cv2.imread('images/shop_units/hecarim.png'),
+        'xayah': cv2.imread('images/shop_units/xayah.png'),
+        'shen': cv2.imread('images/shop_units/shen.png'),
+        'kayn': cv2.imread('images/shop_units/kayn.png'),
+        'shyvana': cv2.imread('images/shop_units/shyvana.png'),
+        'swain': cv2.imread('images/shop_units/swain.png'),
+        'senna': cv2.imread('images/shop_units/senna.png'),
+        'taric': cv2.imread('images/shop_units/taric.png'),
+        'test': cv2.imread('images/shop_units/sett.png'),
+        'kong': cv2.imread('images/shop_units/wukong.png'),
+        'ab': cv2.imread('images/shop_units/jax.png'),
+        'shi': cv2.imread('images/shop_units/soy.png'),
+        'gnar': cv2.imread('images/shop_units/gnar.png'),
+        'olaf': cv2.imread('images/shop_units/olaf.png'),
+        'yone': cv2.imread('images/shop_units/yone.png'),
+        'karma': cv2.imread('images/shop_units/karma.png'),
+        'jayce': cv2.imread('images/shop_units/jayce.png'),
+        'nidalee': cv2.imread('images/shop_units/nidalee.png'),
+        'skarn': cv2.imread('images/shop_units/skarner.png'),
+        'viad': cv2.imread('images/shop_units/vladimir.png'),
+        'lux': cv2.imread('images/shop_units/lux.png'),
+        'varus': cv2.imread('images/shop_units/varus.png'),
+        'sylas': cv2.imread('images/shop_units/sylas.png')
 
-    }.get(unit, cv2.imread('wukong.png'))
+    }.get(unit, cv2.imread('images/shop_units/wukong.png'))
 
 
 shopWindow = {'top': 915, 'left': 480, 'width': 1000, 'height': 165}
@@ -452,16 +453,16 @@ def carousel(target_items, stage_number):
 def get_item_img(item):
     """Given an item name, returns the corresponding cv2 image object."""
     return {
-        'belt': cv2.imread('carousel_belt.png'),
-        'bow': cv2.imread('carousel_bow.png'),
-        'cloak': cv2.imread('carousel_cloak.png'),
-        'glove': cv2.imread('carousel_glove.png'),
-        'needless': cv2.imread('carousel_rod.png'),
-        'sword': cv2.imread('carousel_sword.png'),
-        'tear': cv2.imread('carousel_tear.png'),
-        'vest': cv2.imread('carousel_vest.png')
+        'belt': cv2.imread('images/carousel_items/carousel_belt.png'),
+        'bow': cv2.imread('images/carousel_items/carousel_bow.png'),
+        'cloak': cv2.imread('images/carousel_items/carousel_cloak.png'),
+        'glove': cv2.imread('images/carousel_items/carousel_glove.png'),
+        'needless': cv2.imread('images/carousel_items/carousel_rod.png'),
+        'sword': cv2.imread('images/carousel_items/carousel_sword.png'),
+        'tear': cv2.imread('images/carousel_items/carousel_tear.png'),
+        'vest': cv2.imread('images/carousel_items/carousel_vest.png')
 
-    }.get(item, cv2.imread('carousel_belt.png'))
+    }.get(item, cv2.imread('images/carousel_items/carousel_belt.png'))
 
 
 def lock_shop():
@@ -474,7 +475,7 @@ def collect_items(secs, hard_stop):
     method = cv2.TM_SQDIFF_NORMED
     threshold = 0.15
 
-    drop_img = [cv2.imread('grey_drop.png'), cv2.imread('blue_drop.png'), cv2.imread('gold_drop.png')]
+    drop_img = [cv2.imread('images/misc/grey_drop.png'), cv2.imread('images/misc/blue_drop.png'), cv2.imread('images/misc/gold_drop.png')]
     board_window = {'top': 164, 'left': 501, 'width': 914, 'height': 555}
 
     time_start = time.time()
@@ -660,7 +661,7 @@ def accept_queue():
     method = cv2.TM_SQDIFF_NORMED
     threshold = 0.2
 
-    accept_img = cv2.imread("accept_queue.png")
+    accept_img = cv2.imread("images/misc/accept_queue.png")
 
     while not wait_until_game_start():
         img = Image.frombytes('RGB', (1920, 1080), sct.grab({'top': 0, 'left': 0, 'width': 1920, 'height': 1080}).rgb)
@@ -694,7 +695,7 @@ def wait_until_game_start():
     method = cv2.TM_SQDIFF_NORMED
     threshold = 0.1
     img = Image.frombytes('RGB', (90, 30), sct.grab({'top': 5, 'left': 800, 'width': 90, 'height': 30}).rgb)
-    start_stage_img = cv2.imread("start_stage.png")
+    start_stage_img = cv2.imread("images/misc/start_stage.png")
     screen = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
     result = cv2.matchTemplate(start_stage_img, screen, method)
 
